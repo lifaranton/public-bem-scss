@@ -28,6 +28,22 @@ test('builds nested BEM SCSS', () => {
   )
 })
 
+test('React: className string and expression', () => {
+  const jsx = `<div className="card card--big">
+    <h2 className={clsx('card__title', { 'card__title--active': isActive })}>Hi</h2>
+    <p className={isMuted ? "card__text card__text--muted" : "card__text"} />
+    <i className={\`icon icon--\${name}\`} />
+  </div>`
+  assert.deepEqual(extractClasses(jsx), [
+    'card', 'card--big', 'card__title', 'card__title--active', 'card__text', 'card__text--muted',
+  ])
+})
+
+test('keeps document order across class and :class', () => {
+  const html = `<b :class="['menu__item']"></b><a class="menu"></a>`
+  assert.deepEqual(extractClasses(html), ['menu__item', 'menu'])
+})
+
 test('element without block class still creates the block', () => {
   assert.equal(convert('<b class="menu__item"></b>'), `.menu {\n  &__item {\n  }\n}\n`)
 })

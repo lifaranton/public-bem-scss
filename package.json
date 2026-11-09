@@ -1,14 +1,15 @@
 {
   "name": "bem-scss",
-  "version": "1.0.0",
-  "description": "Turn HTML / Vue markup into a BEM-nested SCSS skeleton — from clipboard to clipboard, one hotkey in your IDE",
+  "version": "1.1.0",
+  "description": "Turn HTML / Vue / React markup into a BEM-nested SCSS skeleton — from clipboard to clipboard, one hotkey in your IDE",
   "type": "module",
   "bin": {
     "bem-scss": "./bem-scss.mjs"
   },
   "exports": "./bem-scss.mjs",
   "files": [
-    "bem-scss.mjs"
+    "bem-scss.mjs",
+    "README.en.md"
   ],
   "scripts": {
     "test": "node --test"
@@ -22,6 +23,8 @@
     "sass",
     "css",
     "vue",
+    "react",
+    "jsx",
     "html",
     "cli",
     "webstorm",

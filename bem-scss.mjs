@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// bem-scss — classes from markup (HTML, Vue) → SCSS nested by BEM.
+// bem-scss — classes from markup (HTML, Vue, React/JSX) → SCSS nested by BEM.
 // https://github.com/lifaranton/public-bem-scss
 //
 //   bem-scss              clipboard → clipboard (bind it to a hotkey in your IDE)
@@ -7,14 +7,15 @@
 //
 // Naming: block__element--modifier
 //   .block { &--mod {} &__element { &--mod {} } }
-// Classes are taken from class="…" and from quoted strings inside :class / v-bind:class.
+// Classes are taken from class="…" / className="…" and from quoted strings
+// inside :class / v-bind:class / className={…}.
 
 import { execFileSync } from 'node:child_process'
 import { platform } from 'node:os'
 import { readFileSync, existsSync, realpathSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
-const VERSION = '1.0.0'
+const VERSION = '1.1.0'
 const isWin = platform() === 'win32'
 const isWsl = platform() === 'linux' && existsSync('/proc/sys/fs/binfmt_misc/WSLInterop')
 
@@ -32,18 +33,42 @@ function writeClipboard(text) {
   return execFileSync('xclip', ['-selection', 'clipboard'], { input: text })
 }
 
+// static strings inside an expression: 'a', "a", `a` (template literals with ${} are skipped)
+function quotedStrings(expr) {
+  return [...expr.matchAll(/'([^']*)'|"([^"]*)"|`([^`$]*)`/g)].map((s) => s[1] ?? s[2] ?? s[3])
+}
+
+// text inside {…} starting at position i (which points at "{"), braces balanced
+function braced(src, i) {
+  let depth = 0
+  for (let j = i; j < src.length; j++) {
+    if (src[j] === '{') depth++
+    else if (src[j] === '}' && --depth === 0) return src.slice(i + 1, j)
+  }
+  return src.slice(i + 1)
+}
+
 export function extractClasses(markup) {
+  const found = [] // [position, class string] — sorted later to keep document order
+  // HTML / Vue: class="…" / class='…' (not :class)
+  for (const m of markup.matchAll(/(?<![:\w-])class\s*=\s*(["'])([\s\S]*?)\1/g)) found.push([m.index, m[2]])
+  // Vue: :class="…" / v-bind:class="…" — only quoted strings inside the expression
+  for (const m of markup.matchAll(/(?::|v-bind:)class\s*=\s*"([\s\S]*?)"/g)) {
+    for (const s of quotedStrings(m[1].replace(/"/g, ''))) found.push([m.index, s])
+  }
+  // React / JSX: className="…" / className='…'
+  for (const m of markup.matchAll(/\bclassName\s*=\s*(["'])([\s\S]*?)\1/g)) found.push([m.index, m[2]])
+  // React / JSX: className={…} — only quoted strings inside (clsx, ternaries, template literals)
+  for (const m of markup.matchAll(/\bclassName\s*=\s*\{/g)) {
+    const expr = braced(markup, m.index + m[0].length - 1)
+    for (const s of quotedStrings(expr)) found.push([m.index, s])
+  }
+
   const out = []
-  const add = (s) => {
+  for (const [, s] of found.sort((a, b) => a[0] - b[0])) {
     for (const c of s.split(/\s+/)) {
       if (/^-?[A-Za-z_][\w-]*$/.test(c) && !out.includes(c)) out.push(c)
     }
-  }
-  // class="…" / class='…' (не :class)
-  for (const m of markup.matchAll(/(?<![:\w-])class\s*=\s*(["'])([\s\S]*?)\1/g)) add(m[2])
-  // :class="…" / v-bind:class="…" — только строки в кавычках внутри выражения
-  for (const m of markup.matchAll(/(?::|v-bind:)class\s*=\s*"([\s\S]*?)"/g)) {
-    for (const s of m[1].matchAll(/'([^']*)'|`([^`$]*)`/g)) add(s[1] ?? s[2])
   }
   return out
 }
